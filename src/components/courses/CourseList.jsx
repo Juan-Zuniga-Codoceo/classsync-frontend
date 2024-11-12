@@ -1,4 +1,3 @@
-// components/courses/CourseList.jsx
 import React from 'react';
 
 function CourseList({ courses, onEdit, onDelete }) {
@@ -11,15 +10,20 @@ function CourseList({ courses, onEdit, onDelete }) {
   }
 
   const getLevelBadgeStyle = (level) => {
-    return level === 'primary' || level === 'Básica'
-      ? 'bg-green-100 text-green-800' 
+    return level === 'primary'
+      ? 'bg-green-100 text-green-800'
       : 'bg-blue-100 text-blue-800';
   };
 
   const getLevelLabel = (level) => {
-    if (level === 'primary') return 'Básica';
-    if (level === 'secondary') return 'Media';
-    return level;
+    switch (level) {
+      case 'primary':
+        return 'Básica';
+      case 'secondary':
+        return 'Media';
+      default:
+        return level;
+    }
   };
 
   return (
@@ -49,7 +53,7 @@ function CourseList({ courses, onEdit, onDelete }) {
                   {getLevelLabel(course.level)}
                 </span>
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+              <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
                 <button
                   onClick={() => onEdit(course)}
                   className="text-indigo-600 hover:text-indigo-900 mx-2"

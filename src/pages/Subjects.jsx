@@ -1,4 +1,3 @@
-// pages/Subjects.jsx
 import React, { useState, useEffect } from 'react';
 import SubjectList from '../components/subjects/SubjectList';
 import SubjectFormModal from '../components/subjects/SubjectFormModal';
@@ -10,6 +9,10 @@ function Subjects() {
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState(null);
+
+  useEffect(() => {
+    loadSubjects();
+  }, []);
 
   const loadSubjects = async () => {
     try {
@@ -25,10 +28,6 @@ function Subjects() {
     }
   };
 
-  useEffect(() => {
-    loadSubjects();
-  }, []);
-
   const handleCreateSubject = () => {
     setSelectedSubject(null);
     setIsModalOpen(true);
@@ -42,16 +41,24 @@ function Subjects() {
   const handleDeleteSubject = async (id) => {
     if (window.confirm('¿Está seguro de eliminar esta asignatura?')) {
       try {
+        setError(null);
         await subjectService.delete(id);
         await loadSubjects();
       } catch (error) {
-        setError('Error al eliminar la asignatura');
+        console.error('Error al eliminar:', error);
+        // Mostrar mensaje específico para el error de profesores asignados
+        if (error.response?.data?.error === 'No se puede eliminar la asignatura porque tiene profesores asignados') {
+          alert('No se puede eliminar esta asignatura porque tiene profesores asignados. Por favor, primero desasocie los profesores de la asignatura.');
+        } else {
+          setError('Error al eliminar la asignatura');
+        }
       }
     }
   };
 
   const handleSubmit = async (formData) => {
     try {
+      setError(null);
       if (selectedSubject) {
         await subjectService.update(selectedSubject.id, formData);
       } else {
@@ -60,7 +67,9 @@ function Subjects() {
       await loadSubjects();
       setIsModalOpen(false);
     } catch (error) {
-      throw new Error('Error al guardar la asignatura');
+      const errorMessage = error.response?.data?.error || 'Error al guardar la asignatura';
+      setError(errorMessage);
+      throw new Error(errorMessage);
     }
   };
 
@@ -83,16 +92,16 @@ function Subjects() {
           onClick={handleCreateSubject}
           className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center"
         >
-          <svg 
-            className="w-5 h-5 mr-2" 
-            fill="none" 
-            stroke="currentColor" 
+          <svg
+            className="w-5 h-5 mr-2"
+            fill="none"
+            stroke="currentColor"
             viewBox="0 0 24 24"
           >
-            <path 
-              strokeLinecap="round" 
-              strokeLinejoin="round" 
-              strokeWidth="2" 
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
               d="M12 4v16m8-8H4"
             />
           </svg>
@@ -101,8 +110,17 @@ function Subjects() {
       </div>
 
       {error && (
-        <div className="mb-4 bg-red-50 text-red-600 p-4 rounded-md">
-          {error}
+        <div className="mb-4 bg-red-50 border-l-4 border-red-400 p-4 rounded-md">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-red-600">{error}</p>
+            </div>
+          </div>
         </div>
       )}
 
@@ -117,6 +135,7 @@ function Subjects() {
         onClose={() => {
           setIsModalOpen(false);
           setSelectedSubject(null);
+          setError(null);
         }}
         onSubmit={handleSubmit}
         initialData={selectedSubject}

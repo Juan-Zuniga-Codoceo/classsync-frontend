@@ -1,33 +1,33 @@
-// components/courses/CourseFormModal.jsx
 import React, { useState, useEffect } from 'react';
 
 function CourseFormModal({ isOpen, onClose, onSubmit, initialData = null }) {
   const [formData, setFormData] = useState({
     name: '',
-    level: 'Básica'  // Valor por defecto en español
+    level: 'primary'
   });
-
   const [error, setError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (initialData) {
-      setFormData({
-        name: initialData.name || '',
-        // Convertir el valor del backend a la visualización
-        level: initialData.level === 'primary' ? 'Básica' : 'Media'
-      });
-    } else {
-      setFormData({
-        name: '',
-        level: 'Básica'
-      });
+    if (isOpen) {
+      if (initialData) {
+        console.log('Iniciando edición con datos:', initialData);
+        setFormData({
+          name: initialData.name || '',
+          level: initialData.level || 'primary'
+        });
+      } else {
+        setFormData({
+          name: '',
+          level: 'primary'
+        });
+      }
+      setError(null);
     }
-  }, [initialData, isOpen]);
+  }, [isOpen, initialData]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
     if (!formData.name.trim()) {
       setError('El nombre del curso es requerido');
       return;
@@ -35,11 +35,11 @@ function CourseFormModal({ isOpen, onClose, onSubmit, initialData = null }) {
 
     setIsSubmitting(true);
     try {
-      const dataToSubmit = {
+      console.log('Enviando datos del formulario:', formData);
+      await onSubmit({
         name: formData.name.trim(),
-        level: formData.level === 'Básica' ? 'primary' : 'secondary'
-      };
-      await onSubmit(dataToSubmit);
+        level: formData.level
+      });
       onClose();
     } catch (error) {
       console.error('Error en submit:', error);
@@ -51,6 +51,7 @@ function CourseFormModal({ isOpen, onClose, onSubmit, initialData = null }) {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    console.log('Cambio en campo:', name, 'nuevo valor:', value);
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -112,8 +113,8 @@ function CourseFormModal({ isOpen, onClose, onSubmit, initialData = null }) {
                 onChange={handleChange}
                 className="mt-1 block w-full rounded-md border border-gray-300 shadow-sm py-2 px-3 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
               >
-                <option value="Básica">Básica</option>
-                <option value="Media">Media</option>
+                <option value="primary">Básica</option>
+                <option value="secondary">Media</option>
               </select>
             </div>
 

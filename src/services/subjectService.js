@@ -1,4 +1,3 @@
-// services/subjectService.js
 import api from './api';
 
 const subjectService = {
@@ -8,7 +7,7 @@ const subjectService = {
       return response.data;
     } catch (error) {
       console.error('Error en getAll:', error);
-      throw new Error('Error al obtener las asignaturas');
+      throw error;
     }
   },
 
@@ -18,33 +17,27 @@ const subjectService = {
       return response.data;
     } catch (error) {
       console.error('Error en getById:', error);
-      throw new Error('Error al obtener la asignatura');
+      throw error;
     }
   },
 
   create: async (data) => {
     try {
-      const response = await api.post('/subjects', {
-        ...data,
-        hoursPerWeek: parseInt(data.hoursPerWeek)
-      });
+      const response = await api.post('/subjects', data);
       return response.data;
     } catch (error) {
       console.error('Error en create:', error);
-      throw new Error(error.response?.data?.error || 'Error al crear la asignatura');
+      throw error;
     }
   },
 
   update: async (id, data) => {
     try {
-      const response = await api.put(`/subjects/${id}`, {
-        ...data,
-        hoursPerWeek: parseInt(data.hoursPerWeek)
-      });
+      const response = await api.put(`/subjects/${id}`, data);
       return response.data;
     } catch (error) {
       console.error('Error en update:', error);
-      throw new Error(error.response?.data?.error || 'Error al actualizar la asignatura');
+      throw error;
     }
   },
 
@@ -54,7 +47,13 @@ const subjectService = {
       return response.data;
     } catch (error) {
       console.error('Error en delete:', error);
-      throw new Error('Error al eliminar la asignatura');
+      // Propagar el error con el mensaje del backend
+      if (error.response?.data?.error) {
+        const customError = new Error(error.response.data.error);
+        customError.response = error.response;
+        throw customError;
+      }
+      throw error;
     }
   }
 };

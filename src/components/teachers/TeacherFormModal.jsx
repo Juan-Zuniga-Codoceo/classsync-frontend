@@ -1,4 +1,3 @@
-// components/teachers/TeacherFormModal.jsx
 import React, { useState, useEffect } from 'react';
 import subjectService from '../../services/subjectService';
 import courseService from '../../services/courseService';
@@ -10,7 +9,7 @@ function TeacherFormModal({ isOpen, onClose, onSubmit, initialData = null }) {
     email: '',
     phone: '',
     contractType: 'full-time',
-    totalHours: '',
+    totalHours: '44',
     subjects: []
   });
 
@@ -18,20 +17,21 @@ function TeacherFormModal({ isOpen, onClose, onSubmit, initialData = null }) {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-
   const [subjectAssignment, setSubjectAssignment] = useState({
     subjectId: '',
     courseId: ''
   });
 
-  // Cargar datos iniciales
+  const formatLevel = (level) => {
+    return level === 'primary' ? 'Básica' : 'Media';
+  };
+
   useEffect(() => {
     if (isOpen) {
       loadInitialData();
     }
   }, [isOpen]);
 
-  // Cargar datos del profesor si es edición
   useEffect(() => {
     if (initialData) {
       setFormData({
@@ -40,22 +40,13 @@ function TeacherFormModal({ isOpen, onClose, onSubmit, initialData = null }) {
         email: initialData.email || '',
         phone: initialData.phone || '',
         contractType: initialData.contractType || 'full-time',
-        totalHours: initialData.totalHours?.toString() || '',
+        totalHours: String(initialData.totalHours || 44),
         subjects: initialData.subjects || []
       });
     } else {
-      // Reset form for new teacher
-      setFormData({
-        firstName: '',
-        lastName: '',
-        email: '',
-        phone: '',
-        contractType: 'full-time',
-        totalHours: '',
-        subjects: []
-      });
+      resetForm();
     }
-  }, [initialData]);
+  }, [initialData, isOpen]);
 
   const loadInitialData = async () => {
     try {
@@ -65,7 +56,14 @@ function TeacherFormModal({ isOpen, onClose, onSubmit, initialData = null }) {
         courseService.getAll()
       ]);
       setSubjects(subjectsData);
-      setCourses(coursesData);
+      // Ordenar cursos por nivel y nombre
+      const sortedCourses = coursesData.sort((a, b) => {
+        if (a.level === b.level) {
+          return a.name.localeCompare(b.name);
+        }
+        return a.level === 'primary' ? -1 : 1;
+      });
+      setCourses(sortedCourses);
       setError(null);
     } catch (err) {
       setError('Error al cargar los datos necesarios');
@@ -75,55 +73,78 @@ function TeacherFormModal({ isOpen, onClose, onSubmit, initialData = null }) {
     }
   };
 
+  const resetForm = () => {
+    setFormData({
+      firstName: '',
+      lastName: '',
+      email: '',
+      phone: '',
+      contractType: 'full-time',
+      totalHours: '44',
+      subjects: []
+    });
+    setSubjectAssignment({
+      subjectId: '',
+      courseId: ''
+    });
+    setError(null);
+  };
+
   const validateForm = () => {
-    const errors = {};
-    
     if (!formData.firstName.trim()) {
-      errors.firstName = 'El nombre es requerido';
+      setError('El nombre es requerido');
+      return false;
     }
-    
     if (!formData.lastName.trim()) {
-      errors.lastName = 'El apellido es requerido';
+      setError('El apellido es requerido');
+      return false;
     }
-    
     if (!formData.email.trim()) {
-      errors.email = 'El email es requerido';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      errors.email = 'Email inválido';
+      setError('El email es requerido');
+      return false;
     }
-    
-    if (!formData.phone.trim()) {
-      errors.phone = 'El teléfono es requerido';
-    } else if (!/^\+?[\d\s-]{8,}$/.test(formData.phone.trim())) {
-      errors.phone = 'Teléfono inválido';
-    }
-    
-    if (!formData.totalHours) {
-      errors.totalHours = 'Las horas totales son requeridas';
-    } else {
-      const hours = parseInt(formData.totalHours);
-      if (isNaN(hours) || hours <= 0 || hours > 44) {
-        errors.totalHours = 'Las horas deben estar entre 1 y 44';
-      }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      setError('El email no es válido');
+      return false;
     }
 
-    return Object.keys(errors).length === 0;
+    const totalHours = parseInt(formData.totalHours);
+    if (isNaN(totalHours) || totalHours <= 0 || totalHours > 44) {
+      setError('Las horas totales deben estar entre 1 y 44');
+      return false;
+    }
+
+    const totalAssignedHours = formData.subjects.reduce((total, subject) => {
+      const subjectData = subjects.find(s => s.id === subject.subjectId);
+      return total + (subjectData?.hoursPerWeek || 0);
+    }, 0);
+
+    if (totalAssignedHours > totalHours) {
+      setError(`Las horas asignadas (${totalAssignedHours}) superan el máximo permitido (${totalHours})`);
+      return false;
+    }
+
+    return true;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+    setError(null);
+
     if (!validateForm()) {
-      setError('Por favor, corrija los errores del formulario');
       return;
     }
-    
-    setLoading(true);
+
     try {
-      await onSubmit(formData);
+      setLoading(true);
+      await onSubmit({
+        ...formData,
+        totalHours: parseInt(formData.totalHours)
+      });
       onClose();
     } catch (error) {
-      setError(error.message || 'Error al guardar los datos');
+      console.error('Error en submit:', error);
+      setError(error.response?.data?.error || 'Error al guardar el profesor');
     } finally {
       setLoading(false);
     }
@@ -135,6 +156,7 @@ function TeacherFormModal({ isOpen, onClose, onSubmit, initialData = null }) {
       ...prev,
       [name]: value
     }));
+    setError(null);
   };
 
   const handleAddSubject = () => {
@@ -143,14 +165,27 @@ function TeacherFormModal({ isOpen, onClose, onSubmit, initialData = null }) {
       return;
     }
 
-    // Verificar si ya existe la combinación
+    // Verificar duplicados
     const exists = formData.subjects.some(
-      s => s.subjectId === subjectAssignment.subjectId && 
-           s.courseId === subjectAssignment.courseId
+      s => s.subjectId === parseInt(subjectAssignment.subjectId) && 
+           s.courseId === parseInt(subjectAssignment.courseId)
     );
 
     if (exists) {
       setError('Esta combinación de asignatura y curso ya está asignada');
+      return;
+    }
+
+    // Validar horas
+    const newSubject = subjects.find(s => s.id === parseInt(subjectAssignment.subjectId));
+    const currentHours = formData.subjects.reduce((total, subject) => {
+      const subjectData = subjects.find(s => s.id === subject.subjectId);
+      return total + (subjectData?.hoursPerWeek || 0);
+    }, 0);
+    const newTotalHours = currentHours + (newSubject?.hoursPerWeek || 0);
+
+    if (newTotalHours > parseInt(formData.totalHours)) {
+      setError(`Agregar esta asignatura excedería el límite de ${formData.totalHours} horas`);
       return;
     }
 
@@ -163,14 +198,16 @@ function TeacherFormModal({ isOpen, onClose, onSubmit, initialData = null }) {
         subjectId: parseInt(subjectAssignment.subjectId),
         courseId: parseInt(subjectAssignment.courseId),
         subject: { id: subject.id, name: subject.name },
-        course: { id: course.id, name: course.name }
+        course: { 
+          id: course.id, 
+          name: course.name,
+          level: course.level
+        }
       }]
     }));
 
-    setSubjectAssignment({
-      subjectId: '',
-      courseId: ''
-    });
+    setSubjectAssignment({ subjectId: '', courseId: '' });
+    setError(null);
   };
 
   const handleRemoveSubject = (index) => {
@@ -192,7 +229,7 @@ function TeacherFormModal({ isOpen, onClose, onSubmit, initialData = null }) {
             </h2>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-500 focus:outline-none"
+              className="text-gray-400 hover:text-gray-500"
             >
               <span className="text-2xl">×</span>
             </button>
@@ -216,9 +253,7 @@ function TeacherFormModal({ isOpen, onClose, onSubmit, initialData = null }) {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Nombre
-                </label>
+                <label className="block text-sm font-medium text-gray-700">Nombre</label>
                 <input
                   type="text"
                   name="firstName"
@@ -230,9 +265,7 @@ function TeacherFormModal({ isOpen, onClose, onSubmit, initialData = null }) {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Apellido
-                </label>
+                <label className="block text-sm font-medium text-gray-700">Apellido</label>
                 <input
                   type="text"
                   name="lastName"
@@ -246,9 +279,7 @@ function TeacherFormModal({ isOpen, onClose, onSubmit, initialData = null }) {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Email
-                </label>
+                <label className="block text-sm font-medium text-gray-700">Email</label>
                 <input
                   type="email"
                   name="email"
@@ -260,16 +291,13 @@ function TeacherFormModal({ isOpen, onClose, onSubmit, initialData = null }) {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Teléfono
-                </label>
+                <label className="block text-sm font-medium text-gray-700">Teléfono</label>
                 <input
                   type="tel"
                   name="phone"
                   value={formData.phone}
                   onChange={handleChange}
                   className="mt-1 block w-full rounded-md border border-gray-300 shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                  required
                 />
               </div>
             </div>
@@ -312,13 +340,12 @@ function TeacherFormModal({ isOpen, onClose, onSubmit, initialData = null }) {
               <label className="block text-sm font-medium text-gray-700">
                 Asignación de Materias y Cursos
               </label>
-              
               <div className="flex gap-4">
                 <select
                   value={subjectAssignment.subjectId}
-                  onChange={(e) => setSubjectAssignment(prev => ({ 
-                    ...prev, 
-                    subjectId: e.target.value 
+                  onChange={(e) => setSubjectAssignment(prev => ({
+                    ...prev,
+                    subjectId: e.target.value
                   }))}
                   className="flex-1 rounded-md border border-gray-300 shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                 >
@@ -332,16 +359,16 @@ function TeacherFormModal({ isOpen, onClose, onSubmit, initialData = null }) {
 
                 <select
                   value={subjectAssignment.courseId}
-                  onChange={(e) => setSubjectAssignment(prev => ({ 
-                    ...prev, 
-                    courseId: e.target.value 
+                  onChange={(e) => setSubjectAssignment(prev => ({
+                    ...prev,
+                    courseId: e.target.value
                   }))}
                   className="flex-1 rounded-md border border-gray-300 shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                 >
                   <option value="">Seleccionar curso</option>
                   {courses.map(course => (
                     <option key={course.id} value={course.id}>
-                      {course.name}
+                      {course.name} ({formatLevel(course.level)})
                     </option>
                   ))}
                 </select>
@@ -374,12 +401,21 @@ function TeacherFormModal({ isOpen, onClose, onSubmit, initialData = null }) {
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {formData.subjects.map((item, index) => (
-                        <tr key={`${item.subjectId}-${item.courseId}`}>
+                        <tr key={`${item.subjectId}-${item.courseId}-${index}`}>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                             {item.subject.name}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {item.course.name}
+                            <div className="flex items-center">
+                              <span>{item.course.name} </span>
+                              <span className={`ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                item.course.level === 'primary' 
+                                  ? 'bg-green-100 text-green-800' 
+                                  : 'bg-blue-100 text-blue-800'
+                              }`}>
+                                {formatLevel(item.course.level)}
+                              </span>
+                            </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <button
@@ -387,17 +423,17 @@ function TeacherFormModal({ isOpen, onClose, onSubmit, initialData = null }) {
                               onClick={() => handleRemoveSubject(index)}
                               className="text-red-600 hover:text-red-900"
                             >
-                              <svg 
-                                className="h-5 w-5" 
-                                fill="none" 
-                                viewBox="0 0 24 24" 
+                              <svg
+                                className="h-5 w-5"
+                                fill="none"
+                                viewBox="0 0 24 24"
                                 stroke="currentColor"
                               >
-                                <path 
-                                  strokeLinecap="round" 
-                                  strokeLinejoin="round" 
-                                  strokeWidth={2} 
-                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" 
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
                                 />
                               </svg>
                             </button>
@@ -426,29 +462,30 @@ function TeacherFormModal({ isOpen, onClose, onSubmit, initialData = null }) {
               >
                 {loading ? (
                   <span className="flex items-center">
-                    <svg 
-                      className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" 
-                      fill="none" 
+                    <svg
+                      className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                      fill="none"
                       viewBox="0 0 24 24"
                     >
-                      <circle 
-                        className="opacity-25" 
-                        cx="12" 
-                        cy="12" 
-                        r="10" 
-                        stroke="currentColor" 
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
                         strokeWidth="4"
                       />
-                      <path 
-                        className="opacity-75" 
-                        fill="currentColor" 
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
                         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                       />
                     </svg>
                     Guardando...
                   </span>
-                ) : initialData ? 'Actualizar' : 'Crear'
-                }
+                ) : (
+                  initialData ? 'Actualizar' : 'Crear'
+                )}
               </button>
             </div>
           </form>

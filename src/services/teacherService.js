@@ -4,10 +4,11 @@ const teacherService = {
   getAll: async () => {
     try {
       const response = await api.get('/teachers');
+      console.log('Profesores obtenidos:', response.data);
       return response.data;
     } catch (error) {
       console.error('Error en getAll:', error);
-      throw new Error('Error al obtener los profesores');
+      throw error;
     }
   },
 
@@ -17,54 +18,62 @@ const teacherService = {
       return response.data;
     } catch (error) {
       console.error('Error en getById:', error);
-      throw new Error('Error al obtener el profesor');
+      throw error;
     }
   },
 
   create: async (teacherData) => {
     try {
-      const response = await api.post('/teachers', teacherData);
+      console.log('Datos a enviar en create:', teacherData);
+      const response = await api.post('/teachers', {
+        ...teacherData,
+        totalHours: parseInt(teacherData.totalHours)
+      });
+      console.log('Profesor creado:', response.data);
       return response.data;
     } catch (error) {
       console.error('Error en create:', error);
-      throw new Error(error.response?.data?.error || 'Error al crear el profesor');
+      if (error.response?.data?.error) {
+        const customError = new Error(error.response.data.error);
+        customError.response = error.response;
+        throw customError;
+      }
+      throw error;
     }
   },
 
   update: async (id, teacherData) => {
     try {
-      const response = await api.put(`/teachers/${id}`, teacherData);
+      console.log('Datos a enviar en update:', { id, teacherData });
+      const response = await api.put(`/teachers/${id}`, {
+        ...teacherData,
+        totalHours: parseInt(teacherData.totalHours)
+      });
+      console.log('Profesor actualizado:', response.data);
       return response.data;
     } catch (error) {
       console.error('Error en update:', error);
-      throw new Error(error.response?.data?.error || 'Error al actualizar el profesor');
+      if (error.response?.data?.error) {
+        const customError = new Error(error.response.data.error);
+        customError.response = error.response;
+        throw customError;
+      }
+      throw error;
     }
   },
 
   delete: async (id) => {
     try {
-      await api.delete(`/teachers/${id}`);
+      const response = await api.delete(`/teachers/${id}`);
+      return response.data;
     } catch (error) {
       console.error('Error en delete:', error);
-      throw new Error('Error al eliminar el profesor');
-    }
-  },
-
-  getStats: async () => {
-    try {
-      const teachers = await this.getAll();
-      return {
-        totalTeachers: teachers.length,
-        fullTimeTeachers: teachers.filter(t => t.contractType === 'full-time').length,
-        partTimeTeachers: teachers.filter(t => t.contractType === 'part-time').length,
-        totalHours: teachers.reduce((sum, t) => sum + t.totalHours, 0),
-        averageHours: Math.round(
-          teachers.reduce((sum, t) => sum + t.totalHours, 0) / teachers.length
-        )
-      };
-    } catch (error) {
-      console.error('Error en getStats:', error);
-      throw new Error('Error al obtener estadísticas');
+      if (error.response?.data?.error) {
+        const customError = new Error(error.response.data.error);
+        customError.response = error.response;
+        throw customError;
+      }
+      throw error;
     }
   }
 };
