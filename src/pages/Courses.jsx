@@ -1,34 +1,49 @@
+// src/pages/Courses.jsx
 import React, { useState, useEffect } from 'react';
+import { PlusIcon } from 'lucide-react';
 import CourseList from '../components/courses/CourseList';
 import CourseFormModal from '../components/courses/CourseFormModal';
 import courseService from '../services/courseService';
-import SetupGuide from '../components/common/SetupGuide';
+import subjectService from '../services/subjectService';
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/use-toast";
 
 function Courses() {
   const [courses, setCourses] = useState([]);
+  const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState(null);
+  const { toast } = useToast();
 
-  useEffect(() => {
-    loadCourses();
-  }, []);
-
-  const loadCourses = async () => {
+  const loadData = async () => {
     try {
       setLoading(true);
+      const [coursesData, subjectsData] = await Promise.all([
+        courseService.getAll(),
+        subjectService.getAll()
+      ]);
+
+      setCourses(coursesData);
+      setSubjects(subjectsData);
       setError(null);
-      const data = await courseService.getAll();
-      console.log('Cursos cargados:', data);
-      setCourses(data);
     } catch (err) {
-      setError('Error al cargar los cursos');
-      console.error('Error loading courses:', err);
+      console.error('Error al cargar los datos:', err);
+      setError('Error al cargar los datos');
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudieron cargar los datos"
+      });
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const handleCreateCourse = () => {
     setSelectedCourse(null);
@@ -36,49 +51,63 @@ function Courses() {
   };
 
   const handleEditCourse = (course) => {
-    console.log('Editando curso:', course);
-    setSelectedCourse(course);
+    // Transformar los datos para el formato que espera el formulario
+    const formattedCourse = {
+      ...course,
+      courseSubjects: course.courseSubjects?.map(cs => ({
+        subject: cs.subject,
+        hoursPerWeek: cs.hoursPerWeek
+      })) || []
+    };
+    setSelectedCourse(formattedCourse);
     setIsModalOpen(true);
   };
 
   const handleDeleteCourse = async (id) => {
     if (window.confirm('¿Está seguro de eliminar este curso?')) {
       try {
-        setError(null);
         await courseService.delete(id);
-        await loadCourses();
+        toast({
+          title: "Éxito",
+          description: "Curso eliminado correctamente"
+        });
+        await loadData();
       } catch (error) {
         console.error('Error al eliminar curso:', error);
-        // Mostrar mensaje específico según el error
-        if (error.response?.data?.error) {
-          setError(error.response.data.error);
-        } else {
-          setError('Error al eliminar el curso');
-        }
-        
-        // Si quieres mostrar una alerta en lugar de un mensaje en la interfaz
-        if (error.response?.data?.error === 'No se puede eliminar el curso porque tiene profesores asignados') {
-          alert('No se puede eliminar este curso porque tiene profesores asignados. Por favor, primero desasocie los profesores del curso.');
-        }
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: error.message || "Error al eliminar el curso"
+        });
       }
     }
   };
 
   const handleSubmit = async (formData) => {
     try {
-      setError(null);
-      console.log('Datos del formulario a enviar:', formData);
       if (selectedCourse) {
         await courseService.update(selectedCourse.id, formData);
+        toast({
+          title: "Éxito",
+          description: "Curso actualizado correctamente"
+        });
       } else {
         await courseService.create(formData);
+        toast({
+          title: "Éxito",
+          description: "Curso creado correctamente"
+        });
       }
-      await loadCourses();
       setIsModalOpen(false);
+      await loadData();
     } catch (error) {
-      const errorMessage = error.response?.data?.error || 'Error al guardar el curso';
-      setError(errorMessage);
-      throw new Error(errorMessage);
+      console.error('Error al guardar curso:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Error al guardar el curso"
+      });
+      throw error;
     }
   };
 
@@ -95,46 +124,22 @@ function Courses() {
 
   return (
     <div className="p-8">
-      <SetupGuide />
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-semibold text-gray-900">Cursos</h1>
-        <button
-          onClick={handleCreateCourse}
-          className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center"
-        >
-          <svg
-            className="w-5 h-5 mr-2"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M12 4v16m8-8H4"
-            />
-          </svg>
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900">Cursos</h1>
+          <p className="mt-1 text-sm text-gray-500">
+            Gestiona los cursos y sus asignaturas asignadas
+          </p>
+        </div>
+        <Button onClick={handleCreateCourse}>
+          <PlusIcon className="h-5 w-5 mr-2" />
           Nuevo Curso
-        </button>
+        </Button>
       </div>
 
       {error && (
-        <div className="mb-4 bg-red-50 border-l-4 border-red-400 p-4 rounded-md">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                <path
-                  fillRule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </div>
-            <div className="ml-3">
-              <p className="text-sm text-red-600">{error}</p>
-            </div>
-          </div>
+        <div className="mb-4 bg-red-50 text-red-600 p-4 rounded-md">
+          {error}
         </div>
       )}
 
@@ -149,10 +154,10 @@ function Courses() {
         onClose={() => {
           setIsModalOpen(false);
           setSelectedCourse(null);
-          setError(null);
         }}
         onSubmit={handleSubmit}
         initialData={selectedCourse}
+        subjects={subjects}
       />
     </div>
   );

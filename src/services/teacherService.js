@@ -4,7 +4,6 @@ const teacherService = {
   getAll: async () => {
     try {
       const response = await api.get('/teachers');
-      console.log('Profesores obtenidos:', response.data);
       return response.data;
     } catch (error) {
       console.error('Error en getAll:', error);
@@ -24,23 +23,25 @@ const teacherService = {
 
   create: async (teacherData) => {
     try {
-      console.log('Datos a enviar en create:', teacherData);
-      const response = await api.post('/teachers', {
+      // Transformar los datos antes de enviarlos
+      const formattedData = {
         ...teacherData,
-        totalHours: parseInt(teacherData.totalHours)
-      });
-      console.log('Profesor creado:', response.data);
+        subjects: teacherData.subjects.map(subject => ({
+          subjectId: subject.subjectId,
+          courseId: subject.courseId || undefined,
+          level: subject.level || 'middle',
+          isFlexible: subject.isFlexible || false
+        }))
+      };
+
+      const response = await api.post('/teachers', formattedData);
       return response.data;
     } catch (error) {
       console.error('Error en create:', error);
-      if (error.response?.data?.error) {
-        const customError = new Error(error.response.data.error);
-        customError.response = error.response;
-        throw customError;
-      }
       throw error;
     }
   },
+
 
   update: async (id, teacherData) => {
     try {

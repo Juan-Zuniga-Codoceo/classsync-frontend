@@ -4,33 +4,62 @@ import TeacherList from '../components/teachers/TeacherList';
 import TeacherFormModal from '../components/teachers/TeacherFormModal';
 import SetupGuide from '../components/common/SetupGuide';
 import teacherService from '../services/teacherService';
+import subjectService from '../services/subjectService';
+import courseService from '../services/courseService';
+import { PlusIcon } from 'lucide-react';
+import { Button } from '../components/ui/button';
+import { useToast } from '../components/ui/use-toast';
 
 function Teachers() {
   const [teachers, setTeachers] = useState([]);
+  const [subjects, setSubjects] = useState([]);
+  const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState(null);
+  const { toast } = useToast();
 
   useEffect(() => {
-    loadTeachers();
+    loadInitialData();
   }, []);
 
-  const loadTeachers = async () => {
+  const loadInitialData = async () => {
     try {
       setLoading(true);
-      const data = await teacherService.getAll();
-      setTeachers(data);
+      const [teachersData, subjectsData, coursesData] = await Promise.all([
+        teacherService.getAll(),
+        subjectService.getAll(),
+        courseService.getAll()
+      ]);
+
+      setTeachers(teachersData);
+      setSubjects(subjectsData);
+      setCourses(coursesData);
       setError(null);
     } catch (err) {
-      setError('Error al cargar los profesores');
-      console.error('Error cargando profesores:', err);
+      setError('Error al cargar los datos');
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudieron cargar los datos"
+      });
     } finally {
       setLoading(false);
     }
   };
 
   const handleCreateTeacher = () => {
+    // Verificar que existan materias y cursos antes de permitir crear un profesor
+    if (!subjects.length || !courses.length) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Debe crear materias y cursos antes de agregar profesores"
+      });
+      return;
+    }
+
     setSelectedTeacher(null);
     setIsModalOpen(true);
   };
@@ -44,9 +73,17 @@ function Teachers() {
     if (window.confirm('¿Está seguro de eliminar este profesor?')) {
       try {
         await teacherService.delete(id);
-        await loadTeachers();
+        toast({
+          title: "Éxito",
+          description: "Profesor eliminado correctamente"
+        });
+        await loadInitialData();
       } catch (error) {
-        setError('Error al eliminar el profesor');
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Error al eliminar el profesor"
+        });
       }
     }
   };
@@ -55,13 +92,26 @@ function Teachers() {
     try {
       if (selectedTeacher) {
         await teacherService.update(selectedTeacher.id, formData);
+        toast({
+          title: "Éxito",
+          description: "Profesor actualizado correctamente"
+        });
       } else {
         await teacherService.create(formData);
+        toast({
+          title: "Éxito",
+          description: "Profesor creado correctamente"
+        });
       }
-      await loadTeachers();
+      await loadInitialData();
       setIsModalOpen(false);
     } catch (error) {
-      throw new Error('Error al guardar el profesor');
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Error al guardar el profesor"
+      });
+      throw error;
     }
   };
 
@@ -76,31 +126,43 @@ function Teachers() {
     );
   }
 
+  // Verificar si se necesita mostrar la guía de configuración
+  const showSetupGuide = !subjects.length || !courses.length;
+
   return (
     <div className="p-8">
-      <SetupGuide />
+      {showSetupGuide && (
+        <div className="mb-8">
+          <SetupGuide 
+            steps={[
+              {
+                title: "Crear las asignaturas que se impartirán",
+                completed: subjects.length > 0,
+                link: "/subjects"
+              },
+              {
+                title: "Configurar los cursos disponibles",
+                completed: courses.length > 0,
+                link: "/courses"
+              },
+              {
+                title: "Registrar a los profesores y asignarles materias",
+                completed: teachers.length > 0
+              }
+            ]}
+          />
+        </div>
+      )}
       
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-2xl font-semibold text-gray-900">Profesores</h1>
-        <button
+        <Button
           onClick={handleCreateTeacher}
-          className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center"
+          className="flex items-center"
         >
-          <svg 
-            className="w-5 h-5 mr-2" 
-            fill="none" 
-            stroke="currentColor" 
-            viewBox="0 0 24 24"
-          >
-            <path 
-              strokeLinecap="round" 
-              strokeLinejoin="round" 
-              strokeWidth="2" 
-              d="M12 4v16m8-8H4"
-            />
-          </svg>
+          <PlusIcon className="w-5 h-5 mr-2" />
           Nuevo Profesor
-        </button>
+        </Button>
       </div>
 
       {error && (
@@ -120,6 +182,8 @@ function Teachers() {
         onClose={() => setIsModalOpen(false)}
         onSubmit={handleSubmit}
         initialData={selectedTeacher}
+        subjects={subjects}
+        courses={courses}
       />
     </div>
   );

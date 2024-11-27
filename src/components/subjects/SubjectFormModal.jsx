@@ -1,107 +1,218 @@
-// components/subjects/SubjectFormModal.jsx
 import React, { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
-function SubjectFormModal({ isOpen, onClose, onSubmit, initialData = null }) {
+function SubjectFormModal({ isOpen, onClose, onSubmit, initialData = null, courses = [] }) {
   const [formData, setFormData] = useState({
     name: '',
-    hoursPerWeek: ''
+    courses: []
   });
+
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     if (initialData) {
       setFormData({
         name: initialData.name || '',
-        hoursPerWeek: initialData.hoursPerWeek?.toString() || ''
+        courses: initialData.courseSubjects?.map(cs => ({
+          courseId: cs.course.id,
+          hoursPerWeek: cs.hoursPerWeek
+        })) || []
       });
     } else {
       setFormData({
         name: '',
-        hoursPerWeek: ''
+        courses: []
       });
     }
+    setError(null);
   }, [initialData, isOpen]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Asegurarse de que hoursPerWeek sea un número
-    const submissionData = {
-      ...formData,
-      hoursPerWeek: parseInt(formData.hoursPerWeek, 10)
-    };
-    onSubmit(submissionData);
+    
+    // Validaciones
+    if (!formData.name.trim()) {
+      setError('El nombre de la asignatura es requerido');
+      return;
+    }
+
+    if (formData.courses.length === 0) {
+      setError('Debe asignar al menos un curso');
+      return;
+    }
+
+    // Validar que cada curso tenga horas asignadas
+    const invalidCourse = formData.courses.find(
+      c => !c.hoursPerWeek || c.hoursPerWeek < 1 || c.hoursPerWeek > 40
+    );
+
+    if (invalidCourse) {
+      const course = courses.find(c => c.id === invalidCourse.courseId);
+      setError(`Debe especificar un número válido de horas (1-40) para el curso ${course.name}`);
+      return;
+    }
+
+    try {
+      // Transformar los datos al formato esperado por el servicio
+      const submissionData = {
+        name: formData.name,
+        courseIds: formData.courses.map(course => ({
+          id: course.courseId,
+          hoursPerWeek: parseInt(course.hoursPerWeek)
+        }))
+      };
+
+      await onSubmit(submissionData);
+      onClose();
+    } catch (error) {
+      setError(error.message);
+    }
   };
 
-  if (!isOpen) return null;
+  const handleCourseToggle = (courseId) => {
+    setFormData(prev => {
+      const exists = prev.courses.find(c => c.courseId === courseId);
+      if (exists) {
+        return {
+          ...prev,
+          courses: prev.courses.filter(c => c.courseId !== courseId)
+        };
+      } else {
+        return {
+          ...prev,
+          courses: [...prev.courses, { courseId, hoursPerWeek: 0 }]
+        };
+      }
+    });
+    setError(null);
+  };
+
+  const handleHoursChange = (courseId, hours) => {
+    setFormData(prev => ({
+      ...prev,
+      courses: prev.courses.map(c => 
+        c.courseId === courseId
+          ? { ...c, hoursPerWeek: hours }
+          : c
+      )
+    }));
+    setError(null);
+  };
+
+  // Separar cursos por nivel
+  const primaryCourses = courses.filter(c => c.level === 'primary');
+  const secondaryCourses = courses.filter(c => c.level === 'secondary');
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg w-full max-w-md">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold">
-              {initialData ? 'Editar Asignatura' : 'Nueva Asignatura'}
-            </h2>
-            <button
-              onClick={onClose}
-              className="text-gray-500 hover:text-gray-700"
-            >
-              ×
-            </button>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>
+            {initialData ? 'Editar Asignatura' : 'Nueva Asignatura'}
+          </DialogTitle>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {error && (
+            <div className="bg-red-50 text-red-600 p-3 rounded-md">
+              {error}
+            </div>
+          )}
+
+          <div>
+            <Label>Nombre de la Asignatura</Label>
+            <Input
+              value={formData.name}
+              onChange={(e) => {
+                setFormData(prev => ({ ...prev, name: e.target.value }));
+                setError(null);
+              }}
+              placeholder="Ej: Matemáticas"
+            />
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-4">
+            {/* Cursos de Básica */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Nombre de la Asignatura
-              </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full rounded-md border border-gray-300 shadow-sm p-2 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                placeholder="Ej: Matemáticas"
-                required
-              />
+              <Label>Básica</Label>
+              <div className="space-y-2">
+                {primaryCourses.map(course => {
+                  const courseAssignment = formData.courses.find(c => c.courseId === course.id);
+                  return (
+                    <div key={course.id} className="flex items-center gap-4 bg-gray-50 p-2 rounded-md">
+                      <input
+                        type="checkbox"
+                        checked={!!courseAssignment}
+                        onChange={() => handleCourseToggle(course.id)}
+                      />
+                      <span>{course.name}</span>
+                      {courseAssignment && (
+                        <div className="flex-1">
+                          <Input
+                            type="number"
+                            min="1"
+                            max="40"
+                            value={courseAssignment.hoursPerWeek}
+                            onChange={(e) => handleHoursChange(course.id, e.target.value)}
+                            className="w-24 ml-auto"
+                            placeholder="Horas"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
+            {/* Cursos de Media */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Horas por Semana
-              </label>
-              <input
-                type="number"
-                value={formData.hoursPerWeek}
-                onChange={(e) => setFormData({ ...formData, hoursPerWeek: e.target.value })}
-                className="w-full rounded-md border border-gray-300 shadow-sm p-2 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                placeholder="Ej: 6"
-                required
-                min="1"
-                max="40"
-              />
-              <p className="mt-1 text-sm text-gray-500">
-                Ingrese el número de horas semanales (entre 1 y 40)
-              </p>
+              <Label>Media</Label>
+              <div className="space-y-2">
+                {secondaryCourses.map(course => {
+                  const courseAssignment = formData.courses.find(c => c.courseId === course.id);
+                  return (
+                    <div key={course.id} className="flex items-center gap-4 bg-gray-50 p-2 rounded-md">
+                      <input
+                        type="checkbox"
+                        checked={!!courseAssignment}
+                        onChange={() => handleCourseToggle(course.id)}
+                      />
+                      <span>{course.name}</span>
+                      {courseAssignment && (
+                        <div className="flex-1">
+                          <Input
+                            type="number"
+                            min="1"
+                            max="40"
+                            value={courseAssignment.hoursPerWeek}
+                            onChange={(e) => handleHoursChange(course.id, e.target.value)}
+                            className="w-24 ml-auto"
+                            placeholder="Horas"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
+          </div>
 
-            <div className="flex justify-end space-x-3 pt-4">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
-              >
-                {initialData ? 'Actualizar' : 'Crear'}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button type="submit">
+              {initialData ? 'Actualizar' : 'Crear'}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 

@@ -1,32 +1,48 @@
+// src/pages/Subjects.jsx
 import React, { useState, useEffect } from 'react';
 import SubjectList from '../components/subjects/SubjectList';
 import SubjectFormModal from '../components/subjects/SubjectFormModal';
 import subjectService from '../services/subjectService';
+import courseService from '../services/courseService';
+import { useToast } from "@/components/ui/use-toast";
+import { Button } from '@/components/ui/button';
+import { PlusIcon } from 'lucide-react';
 
 function Subjects() {
   const [subjects, setSubjects] = useState([]);
+  const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState(null);
+  const { toast } = useToast();
 
-  useEffect(() => {
-    loadSubjects();
-  }, []);
-
-  const loadSubjects = async () => {
+  const loadData = async () => {
     try {
       setLoading(true);
-      const data = await subjectService.getAll();
-      setSubjects(data);
+      const [subjectsData, coursesData] = await Promise.all([
+        subjectService.getAll(),
+        courseService.getAll()
+      ]);
+      
+      setSubjects(subjectsData);
+      setCourses(coursesData);
       setError(null);
     } catch (err) {
-      setError('Error al cargar las asignaturas');
-      console.error('Error cargando asignaturas:', err);
+      setError('Error al cargar los datos');
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudieron cargar los datos"
+      });
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const handleCreateSubject = () => {
     setSelectedSubject(null);
@@ -34,52 +50,68 @@ function Subjects() {
   };
 
   const handleEditSubject = (subject) => {
-    setSelectedSubject(subject);
+    // Transformar los datos para el formato que espera el formulario
+    const formattedSubject = {
+      ...subject,
+      courseSubjects: subject.courses.map(course => ({
+        course,
+        hoursPerWeek: course.hoursPerWeek
+      }))
+    };
+    setSelectedSubject(formattedSubject);
     setIsModalOpen(true);
   };
 
   const handleDeleteSubject = async (id) => {
     if (window.confirm('¿Está seguro de eliminar esta asignatura?')) {
       try {
-        setError(null);
         await subjectService.delete(id);
-        await loadSubjects();
+        toast({
+          title: "Éxito",
+          description: "Asignatura eliminada correctamente"
+        });
+        await loadData();
       } catch (error) {
-        console.error('Error al eliminar:', error);
-        // Mostrar mensaje específico para el error de profesores asignados
-        if (error.response?.data?.error === 'No se puede eliminar la asignatura porque tiene profesores asignados') {
-          alert('No se puede eliminar esta asignatura porque tiene profesores asignados. Por favor, primero desasocie los profesores de la asignatura.');
-        } else {
-          setError('Error al eliminar la asignatura');
-        }
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: error.message || "Error al eliminar la asignatura"
+        });
       }
     }
   };
 
   const handleSubmit = async (formData) => {
     try {
-      setError(null);
       if (selectedSubject) {
         await subjectService.update(selectedSubject.id, formData);
+        toast({
+          title: "Éxito",
+          description: "Asignatura actualizada correctamente"
+        });
       } else {
         await subjectService.create(formData);
+        toast({
+          title: "Éxito",
+          description: "Asignatura creada correctamente"
+        });
       }
-      await loadSubjects();
       setIsModalOpen(false);
+      await loadData();
     } catch (error) {
-      const errorMessage = error.response?.data?.error || 'Error al guardar la asignatura';
-      setError(errorMessage);
-      throw new Error(errorMessage);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Error al guardar la asignatura"
+      });
+      throw error;
     }
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
-          <p className="mt-2 text-sm text-gray-600">Cargando...</p>
-        </div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
       </div>
     );
   }
@@ -88,39 +120,15 @@ function Subjects() {
     <div className="p-8">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-2xl font-semibold text-gray-900">Asignaturas</h1>
-        <button
-          onClick={handleCreateSubject}
-          className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center"
-        >
-          <svg
-            className="w-5 h-5 mr-2"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M12 4v16m8-8H4"
-            />
-          </svg>
+        <Button onClick={handleCreateSubject}>
+          <PlusIcon className="h-5 w-5 mr-2" />
           Nueva Asignatura
-        </button>
+        </Button>
       </div>
 
       {error && (
-        <div className="mb-4 bg-red-50 border-l-4 border-red-400 p-4 rounded-md">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div className="ml-3">
-              <p className="text-sm text-red-600">{error}</p>
-            </div>
-          </div>
+        <div className="mb-4 bg-red-50 text-red-600 p-4 rounded-md">
+          {error}
         </div>
       )}
 
@@ -132,13 +140,10 @@ function Subjects() {
 
       <SubjectFormModal
         isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setSelectedSubject(null);
-          setError(null);
-        }}
+        onClose={() => setIsModalOpen(false)}
         onSubmit={handleSubmit}
         initialData={selectedSubject}
+        courses={courses}
       />
     </div>
   );

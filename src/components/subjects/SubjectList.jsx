@@ -1,5 +1,7 @@
-// components/subjects/SubjectList.jsx
+// src/components/subjects/SubjectList.jsx
 import React from 'react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 
 function SubjectList({ subjects, onEdit, onDelete }) {
   if (!subjects?.length) {
@@ -10,49 +12,57 @@ function SubjectList({ subjects, onEdit, onDelete }) {
     );
   }
 
+  // Función para calcular el total de horas por asignatura
+  const calculateTotalHours = (courses) => {
+    return courses?.reduce((total, course) => total + (course.hoursPerWeek || 0), 0) || 0;
+  };
+
   return (
-    <div className="bg-white shadow-sm rounded-lg overflow-hidden">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
-          <tr>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Nombre
-            </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Horas por Semana
-            </th>
-            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Acciones
-            </th>
-          </tr>
-        </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
+    <div className="bg-white shadow-sm rounded-lg">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Nombre</TableHead>
+            <TableHead>Cursos y Horas</TableHead>
+            <TableHead className="text-right">Acciones</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {subjects.map((subject) => (
-            <tr key={subject.id} className="hover:bg-gray-50">
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                {subject.name}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {`${subject.hoursPerWeek || 0} horas`}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-right text-sm space-x-2">
-                <button
+            <TableRow key={subject.id}>
+              <TableCell className="font-medium">{subject.name}</TableCell>
+              <TableCell>
+                <div className="space-y-1">
+                  {subject.courses.map((course) => (
+                    <div key={course.id} className="text-sm">
+                      <span className="font-medium">{course.name}</span>
+                      <span className="text-gray-500"> - {course.hoursPerWeek} horas semanales</span>
+                    </div>
+                  ))}
+                  <div className="text-sm font-medium text-blue-600">
+                    Total: {calculateTotalHours(subject.courses)} horas
+                  </div>
+                </div>
+              </TableCell>
+              <TableCell className="text-right space-x-2">
+                <Button
+                  variant="ghost"
                   onClick={() => onEdit(subject)}
-                  className="text-indigo-600 hover:text-indigo-900 font-medium"
                 >
                   Editar
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="ghost"
                   onClick={() => onDelete(subject.id)}
-                  className="text-red-600 hover:text-red-900 font-medium"
+                  className="text-red-600 hover:text-red-700"
                 >
                   Eliminar
-                </button>
-              </td>
-            </tr>
+                </Button>
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }

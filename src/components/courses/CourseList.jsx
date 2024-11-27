@@ -1,6 +1,18 @@
+// src/components/courses/CourseList.jsx
 import React from 'react';
+import { Pencil, Trash2 } from 'lucide-react';
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 
-function CourseList({ courses, onEdit, onDelete }) {
+function CourseList({ courses = [], onEdit, onDelete }) {
   if (!courses?.length) {
     return (
       <div className="bg-white shadow rounded-lg p-6 text-center">
@@ -9,68 +21,78 @@ function CourseList({ courses, onEdit, onDelete }) {
     );
   }
 
-  const getLevelBadgeStyle = (level) => {
+  const getLevelStyle = (level) => {
     return level === 'primary'
       ? 'bg-green-100 text-green-800'
       : 'bg-blue-100 text-blue-800';
   };
 
   const getLevelLabel = (level) => {
-    switch (level) {
-      case 'primary':
-        return 'Básica';
-      case 'secondary':
-        return 'Media';
-      default:
-        return level;
-    }
+    return level === 'primary' ? 'Básica' : 'Media';
   };
 
   return (
     <div className="bg-white shadow-sm rounded-lg overflow-hidden">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
-          <tr>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Nombre
-            </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Nivel
-            </th>
-            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Acciones
-            </th>
-          </tr>
-        </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Nombre</TableHead>
+            <TableHead>Nivel</TableHead>
+            <TableHead>Asignaturas</TableHead>
+            <TableHead className="text-right">Acciones</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {courses.map((course) => (
-            <tr key={course.id} className="hover:bg-gray-50">
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+            <TableRow key={course.id}>
+              <TableCell className="font-medium">
                 {course.name}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getLevelBadgeStyle(course.level)}`}>
+              </TableCell>
+              <TableCell>
+                <Badge className={getLevelStyle(course.level)}>
                   {getLevelLabel(course.level)}
-                </span>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                <button
+                </Badge>
+              </TableCell>
+              <TableCell>
+                <div className="flex flex-wrap gap-1">
+                  {course.courseSubjects?.length > 0 ? (
+                    course.courseSubjects.map(cs => (
+                      <Badge 
+                        key={cs.id} 
+                        variant="outline"
+                        className="text-xs"
+                      >
+                        {cs.subject.name} ({cs.hoursPerWeek}h)
+                      </Badge>
+                    ))
+                  ) : (
+                    <span className="text-yellow-600">Sin asignaturas asignadas</span>
+                  )}
+                </div>
+              </TableCell>
+              <TableCell className="text-right space-x-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => onEdit(course)}
-                  className="text-indigo-600 hover:text-indigo-900 mx-2"
                 >
+                  <Pencil className="h-4 w-4 mr-1" />
                   Editar
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => onDelete(course.id)}
-                  className="text-red-600 hover:text-red-900 mx-2"
+                  className="text-red-600 hover:text-red-700"
                 >
+                  <Trash2 className="h-4 w-4 mr-1" />
                   Eliminar
-                </button>
-              </td>
-            </tr>
+                </Button>
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }

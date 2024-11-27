@@ -1,3 +1,4 @@
+// src/services/subjectService.js
 import api from './api';
 
 const subjectService = {
@@ -23,20 +24,45 @@ const subjectService = {
 
   create: async (data) => {
     try {
-      const response = await api.post('/subjects', data);
+      // Transformar los datos al formato esperado por el backend
+      const formattedData = {
+        name: data.name.trim(),
+        courses: data.courseIds.map(course => ({
+          id: course.id,
+          hoursPerWeek: parseInt(course.hoursPerWeek)
+        }))
+      };
+
+      const response = await api.post('/subjects', formattedData);
       return response.data;
     } catch (error) {
       console.error('Error en create:', error);
+      if (error.response?.data?.error) {
+        throw new Error(error.response.data.error);
+      }
       throw error;
     }
   },
 
   update: async (id, data) => {
     try {
-      const response = await api.put(`/subjects/${id}`, data);
+      const formattedData = {
+        name: data.name.trim(),
+        courses: data.courseIds.map(course => ({
+          id: parseInt(course.id),
+          hoursPerWeek: parseInt(course.hoursPerWeek)
+        }))
+      };
+  
+      console.log('Datos enviados al backend:', formattedData);
+      
+      const response = await api.put(`/subjects/${id}`, formattedData);
       return response.data;
     } catch (error) {
       console.error('Error en update:', error);
+      if (error.response?.data?.error) {
+        throw new Error(error.response.data.error);
+      }
       throw error;
     }
   },
@@ -47,11 +73,8 @@ const subjectService = {
       return response.data;
     } catch (error) {
       console.error('Error en delete:', error);
-      // Propagar el error con el mensaje del backend
       if (error.response?.data?.error) {
-        const customError = new Error(error.response.data.error);
-        customError.response = error.response;
-        throw customError;
+        throw new Error(error.response.data.error);
       }
       throw error;
     }

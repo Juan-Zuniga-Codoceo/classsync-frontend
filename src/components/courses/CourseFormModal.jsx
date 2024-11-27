@@ -1,60 +1,42 @@
+// src/components/courses/CourseFormModal.jsx
 import React, { useState, useEffect } from 'react';
 
-function CourseFormModal({ isOpen, onClose, onSubmit, initialData = null }) {
+const CourseFormModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
   const [formData, setFormData] = useState({
     name: '',
     level: 'primary'
   });
+
   const [error, setError] = useState(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (isOpen) {
-      if (initialData) {
-        console.log('Iniciando edición con datos:', initialData);
-        setFormData({
-          name: initialData.name || '',
-          level: initialData.level || 'primary'
-        });
-      } else {
-        setFormData({
-          name: '',
-          level: 'primary'
-        });
-      }
-      setError(null);
+    if (initialData) {
+      setFormData({
+        name: initialData.name || '',
+        level: initialData.level || 'primary'
+      });
+    } else {
+      setFormData({
+        name: '',
+        level: 'primary'
+      });
     }
-  }, [isOpen, initialData]);
+    setError(null);
+  }, [initialData, isOpen]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.name.trim()) {
-      setError('El nombre del curso es requerido');
-      return;
-    }
-
-    setIsSubmitting(true);
     try {
-      console.log('Enviando datos del formulario:', formData);
-      await onSubmit({
-        name: formData.name.trim(),
-        level: formData.level
-      });
-      onClose();
+      await onSubmit(formData);
     } catch (error) {
-      console.error('Error en submit:', error);
-      setError(error.response?.data?.error || 'Error al guardar el curso');
-    } finally {
-      setIsSubmitting(false);
+      setError(error.message);
     }
   };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    console.log('Cambio en campo:', name, 'nuevo valor:', value);
+  const handleChange = (field, value) => {
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [field]: value
     }));
     setError(null);
   };
@@ -62,76 +44,65 @@ function CourseFormModal({ isOpen, onClose, onSubmit, initialData = null }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg w-full max-w-md">
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Overlay */}
+      <div className="fixed inset-0 bg-black bg-opacity-50" onClick={onClose} />
+      
+      {/* Modal */}
+      <div className="relative bg-white rounded-lg shadow-lg w-full max-w-md mx-4">
         <div className="p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">
-              {initialData ? 'Editar Curso' : 'Nuevo Curso'}
-            </h2>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-500"
-            >
-              <span className="text-2xl">×</span>
-            </button>
-          </div>
+          <h2 className="text-xl font-semibold mb-4">
+            {initialData ? 'Editar Curso' : 'Nuevo Curso'}
+          </h2>
 
           {error && (
-            <div className="mb-4 bg-red-50 border-l-4 border-red-400 p-4">
-              <div className="flex">
-                <div className="ml-3">
-                  <p className="text-sm text-red-600">{error}</p>
-                </div>
-              </div>
+            <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-md">
+              {error}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Nombre del Curso
               </label>
               <input
                 type="text"
-                name="name"
+                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={formData.name}
-                onChange={handleChange}
-                className="mt-1 block w-full rounded-md border border-gray-300 shadow-sm py-2 px-3 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                onChange={(e) => handleChange('name', e.target.value)}
                 placeholder="Ej: 1°A"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Nivel
               </label>
               <select
-                name="level"
+                className="w-full px-3 py-2 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={formData.level}
-                onChange={handleChange}
-                className="mt-1 block w-full rounded-md border border-gray-300 shadow-sm py-2 px-3 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                onChange={(e) => handleChange('level', e.target.value)}
               >
                 <option value="primary">Básica</option>
                 <option value="secondary">Media</option>
               </select>
             </div>
 
-            <div className="flex justify-end space-x-3 pt-4">
+            <div className="flex justify-end space-x-2 pt-4">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 border border-gray-300 rounded-md"
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                disabled={isSubmitting}
-                className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-md disabled:opacity-50"
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
-                {isSubmitting ? 'Guardando...' : (initialData ? 'Actualizar' : 'Crear')}
+                {initialData ? 'Actualizar' : 'Crear'}
               </button>
             </div>
           </form>
@@ -139,6 +110,6 @@ function CourseFormModal({ isOpen, onClose, onSubmit, initialData = null }) {
       </div>
     </div>
   );
-}
+};
 
 export default CourseFormModal;
