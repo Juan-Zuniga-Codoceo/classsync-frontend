@@ -1,10 +1,8 @@
-// src/components/schedules/ScheduleGrid.jsx
 import React, { useState } from 'react';
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Settings2, Download, RefreshCw } from 'lucide-react';
-import { Select } from "@/components/ui/select";
 
 const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
 const BLOCKS = Array.from({ length: 8 }, (_, i) => i + 1);
@@ -50,15 +48,15 @@ export default function ScheduleGrid({
           <label className="text-sm font-medium text-gray-700">
             Vista de Horarios
           </label>
-          <Select
+          <select
             value={viewMode}
-            onValueChange={setViewMode}
-            className="w-48"
+            onChange={(e) => setViewMode(e.target.value)}
+            className="w-48 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none"
           >
             <option value="byDay">Por Día</option>
             <option value="byTeacher">Por Profesor</option>
             <option value="byCourse">Por Curso</option>
-          </Select>
+          </select>
         </div>
       </div>
 

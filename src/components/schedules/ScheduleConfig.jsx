@@ -1,4 +1,3 @@
-// src/components/schedules/ScheduleConfig.jsx
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -18,25 +17,17 @@ export function ScheduleConfig({ isOpen, onClose, onSave, initialConfig }) {
   useEffect(() => {
     if (initialConfig) {
       setFormData({
-        startTime: formatTime(initialConfig.startTime),
-        endTime: formatTime(initialConfig.endTime),
-        blockDuration: initialConfig.blockDuration,
-        breakDuration: initialConfig.breakDuration
+        startTime: initialConfig.startTime || '08:00',
+        endTime: initialConfig.endTime || '16:00',
+        blockDuration: initialConfig.blockDuration || 45,
+        breakDuration: initialConfig.breakDuration || 15
       });
     }
   }, [initialConfig]);
 
-  const formatTime = (timeString) => {
-    const date = new Date(timeString);
-    return date.toLocaleTimeString('en-US', {
-      hour12: false,
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
   const handleSubmit = (e) => {
     e.preventDefault();
+    setError(null);
     
     // Validaciones
     if (formData.blockDuration < 30 || formData.blockDuration > 90) {
@@ -46,6 +37,23 @@ export function ScheduleConfig({ isOpen, onClose, onSave, initialConfig }) {
 
     if (formData.breakDuration < 5 || formData.breakDuration > 30) {
       setError('La duración del recreo debe estar entre 5 y 30 minutos');
+      return;
+    }
+
+    const start = new Date(`2000-01-01T${formData.startTime}`);
+    const end = new Date(`2000-01-01T${formData.endTime}`);
+    
+    if (start >= end) {
+      setError('La hora de inicio debe ser anterior a la hora de fin');
+      return;
+    }
+
+    // Calcular bloques posibles
+    const totalMinutes = (end - start) / (1000 * 60);
+    const possibleBlocks = Math.floor(totalMinutes / (formData.blockDuration + formData.breakDuration));
+    
+    if (possibleBlocks < 4) {
+      setError('La configuración debe permitir al menos 4 bloques de clase');
       return;
     }
 

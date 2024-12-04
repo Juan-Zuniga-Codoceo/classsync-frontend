@@ -1,4 +1,3 @@
-// src/services/scheduleService.js
 import api from './api';
 
 const scheduleService = {
@@ -52,6 +51,16 @@ const scheduleService = {
     }
   },
 
+  getStats: async () => {
+    try {
+      const response = await api.get('/schedules/stats');
+      return response.data;
+    } catch (error) {
+      console.error('Error getting stats:', error);
+      throw error;
+    }
+  },
+
   exportToExcel: async () => {
     try {
       const response = await api.get('/schedules/export/excel', {
@@ -66,6 +75,67 @@ const scheduleService = {
       link.remove();
     } catch (error) {
       console.error('Error exporting to Excel:', error);
+      throw error;
+    }
+  },
+
+  // Métodos para bloques específicos
+  getBlock: async (id) => {
+    try {
+      const response = await api.get(`/schedules/block/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error getting block:', error);
+      throw error;
+    }
+  },
+
+  createBlock: async (data) => {
+    try {
+      const response = await api.post('/schedules/block', data);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating block:', error);
+      throw error;
+    }
+  },
+
+  updateBlock: async (id, data) => {
+    try {
+      const response = await api.put(`/schedules/block/${id}`, data);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating block:', error);
+      throw error;
+    }
+  },
+
+  deleteBlock: async (id) => {
+    try {
+      await api.delete(`/schedules/block/${id}`);
+    } catch (error) {
+      console.error('Error deleting block:', error);
+      throw error;
+    }
+  },
+
+  // Métodos para obtener bloques por profesor y curso
+  getBlocksByTeacher: async (teacherId) => {
+    try {
+      const response = await api.get(`/schedules/teacher/${teacherId}/blocks`);
+      return response.data;
+    } catch (error) {
+      console.error('Error getting teacher blocks:', error);
+      throw error;
+    }
+  },
+
+  getBlocksByCourse: async (courseId) => {
+    try {
+      const response = await api.get(`/schedules/course/${courseId}/blocks`);
+      return response.data;
+    } catch (error) {
+      console.error('Error getting course blocks:', error);
       throw error;
     }
   }
